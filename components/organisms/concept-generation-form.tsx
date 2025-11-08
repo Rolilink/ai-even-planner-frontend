@@ -9,15 +9,18 @@ import { Card } from "@/components/ui/card"
 import { ConceptCard } from "@/components/atoms/concept-card"
 import { FeedbackCard } from "@/components/atoms/feedback-card"
 import { conceptGenerationAtom, generateMockConcepts } from "@/store/event-planner"
-import { Lightbulb, RefreshCw } from "lucide-react"
+import { Lightbulb, RefreshCw, Loader2 } from "lucide-react"
 
 export function ConceptGenerationForm() {
   const [conceptData, setConceptData] = useAtom(conceptGenerationAtom)
   const [showConcepts, setShowConcepts] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const feedbackFormRef = useRef<HTMLDivElement>(null)
   const likedInputRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleGenerateConcepts = () => {
+  const handleGenerateConcepts = async () => {
+    setIsLoading(true)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
     const concepts = generateMockConcepts()
     setConceptData({
       ...conceptData,
@@ -25,9 +28,12 @@ export function ConceptGenerationForm() {
       showFeedbackForm: false,
     })
     setShowConcepts(true)
+    setIsLoading(false)
   }
 
-  const handleRegenerateConcepts = () => {
+  const handleRegenerateConcepts = async () => {
+    setIsLoading(true)
+    await new Promise((resolve) => setTimeout(resolve, 2000))
     const concepts = generateMockConcepts()
     setConceptData({
       ...conceptData,
@@ -36,6 +42,7 @@ export function ConceptGenerationForm() {
       feedbackDisliked: "",
       showFeedbackForm: false,
     })
+    setIsLoading(false)
   }
 
   const handleSelectConcept = (conceptId: string) => {
@@ -60,6 +67,16 @@ export function ConceptGenerationForm() {
       }, 300)
     }
   }, [conceptData.showFeedbackForm])
+
+  if (isLoading) {
+    return (
+      <Card className="p-12 flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <p className="text-lg font-medium text-muted-foreground">Generating event concepts...</p>
+        <p className="text-sm text-muted-foreground">This will take just a moment</p>
+      </Card>
+    )
+  }
 
   if (!showConcepts) {
     return (
