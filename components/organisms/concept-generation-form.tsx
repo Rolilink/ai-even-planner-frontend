@@ -8,41 +8,87 @@ import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { ConceptCard } from "@/components/atoms/concept-card"
 import { FeedbackCard } from "@/components/atoms/feedback-card"
-import { conceptGenerationAtom, generateMockConcepts } from "@/store/event-planner"
+import { conceptGenerationAtom, eventFormAtom, generateMockConcepts } from "@/store/event-planner"
+import { generateConcepts } from "@/lib/api"
 import { Lightbulb, RefreshCw, Loader2 } from "lucide-react"
 
 export function ConceptGenerationForm() {
   const [conceptData, setConceptData] = useAtom(conceptGenerationAtom)
+  const [eventData] = useAtom(eventFormAtom)
   const [showConcepts, setShowConcepts] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const feedbackFormRef = useRef<HTMLDivElement>(null)
   const likedInputRef = useRef<HTMLTextAreaElement>(null)
 
   const handleGenerateConcepts = async () => {
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const concepts = generateMockConcepts()
-    setConceptData({
-      ...conceptData,
-      concepts,
-      showFeedbackForm: false,
-    })
-    setShowConcepts(true)
-    setIsLoading(false)
+    setError(null)
+    
+    try {
+      const concepts = await generateConcepts(eventData, conceptData.additionalIdeas)
+      
+      setConceptData({
+        ...conceptData,
+        concepts,
+        showFeedbackForm: false,
+      })
+      setShowConcepts(true)
+    } catch (err) {
+      console.error("[ConceptGenerationForm] Failed to generate concepts:", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate concepts. Please try again."
+      setError(errorMessage)
+      
+      // Don't automatically fallback to mock data - let user see the error
+      // Only show concepts if we have some, otherwise keep the form visible
+      if (conceptData.concepts.length > 0) {
+        setShowConcepts(true)
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleRegenerateConcepts = async () => {
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const concepts = generateMockConcepts()
-    setConceptData({
-      ...conceptData,
-      concepts,
-      feedbackLiked: "",
-      feedbackDisliked: "",
-      showFeedbackForm: false,
-    })
-    setIsLoading(false)
+    setError(null)
+    
+    try {
+      // Combine feedback for user_feedback field
+      const userFeedback = [
+        conceptData.feedbackLiked && `What I liked: ${conceptData.feedbackLiked}`,
+        conceptData.feedbackDisliked && `What I'd like to change: ${conceptData.feedbackDisliked}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n") || null
+
+      const concepts = await generateConcepts(
+        eventData,
+        conceptData.additionalIdeas,
+        userFeedback
+      )
+      setConceptData({
+        ...conceptData,
+        concepts,
+        feedbackLiked: "",
+        feedbackDisliked: "",
+        showFeedbackForm: false,
+      })
+    } catch (err) {
+      console.error("Failed to regenerate concepts:", err)
+      setError(err instanceof Error ? err.message : "Failed to regenerate concepts. Please try again.")
+      // Fallback to mock data on error
+      const concepts = generateMockConcepts()
+      setConceptData({
+        ...conceptData,
+        concepts,
+        feedbackLiked: "",
+        feedbackDisliked: "",
+        showFeedbackForm: false,
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSelectConcept = (conceptId: string) => {
@@ -95,9 +141,29 @@ export function ConceptGenerationForm() {
           />
         </div>
 
-        <Button onClick={handleGenerateConcepts} className="w-full">
-          <Lightbulb className="w-4 h-4 mr-2" />
-          Suggest Concepts
+        {error && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <Button 
+          onClick={handleGenerateConcepts}
+          disabled={isLoading} 
+          className="w-full"
+          type="button"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating Concepts...
+            </>
+          ) : (
+            <>
+              <Lightbulb className="w-4 h-4 mr-2" />
+              Suggest Concepts
+            </>
+          )}
         </Button>
       </Card>
     )
@@ -136,9 +202,24 @@ export function ConceptGenerationForm() {
             />
           </div>
 
-          <Button onClick={handleRegenerateConcepts} className="w-full">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Generate New Concepts
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <Button onClick={handleRegenerateConcepts} disabled={isLoading} className="w-full">
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Regenerating Concepts...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Generate New Concepts
+              </>
+            )}
           </Button>
         </Card>
       )}
