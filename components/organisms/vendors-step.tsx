@@ -9,6 +9,7 @@ import { StepIndicator } from "@/components/molecules/step-indicator"
 import { EventSummaryCard } from "@/components/molecules/event-summary-card"
 import { VendorCard } from "@/components/atoms/vendor-card"
 import { eventFormAtom, vendorSelectionAtom, generateMockVendors, conceptGenerationAtom } from "@/store/event-planner"
+import { generateVendors } from "@/lib/api"
 import { RefreshCw, MessageSquare, Loader2 } from "lucide-react"
 
 interface VendorsStepProps {
@@ -22,32 +23,76 @@ export function VendorsStep({ onContinue }: VendorsStepProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Generate initial vendors on mount if not already done
   useEffect(() => {
-    if (vendorData.categories.length === 0) {
-      setTimeout(() => {
-        setVendorData({
-          ...vendorData,
-          categories: generateMockVendors(),
-        })
+    const loadVendors = async () => {
+      console.log("[VendorsStep] Checking if vendors need to be loaded. Current categories:", vendorData.categories.length)
+      
+      if (vendorData.categories.length === 0) {
+        console.log("[VendorsStep] No vendors found, loading from API...")
+        setIsInitialLoad(true)
+        setError(null)
+        
+        try {
+          console.log("[VendorsStep] Calling generateVendors with eventData:", eventData)
+          const categories = await generateVendors(eventData)
+          console.log("[VendorsStep] Received categories from API:", categories)
+          setVendorData((prev) => ({
+            ...prev,
+            categories,
+          }))
+        } catch (err) {
+          console.error("[VendorsStep] Failed to load vendors:", err)
+          setError(err instanceof Error ? err.message : "Failed to load vendors. Please try again.")
+          // Fallback to mock data on error
+          setVendorData((prev) => ({
+            ...prev,
+            categories: generateMockVendors(),
+          }))
+        } finally {
+          setIsInitialLoad(false)
+        }
+      } else {
+        console.log("[VendorsStep] Vendors already exist, skipping API call")
         setIsInitialLoad(false)
-      }, 2000)
-    } else {
-      setIsInitialLoad(false)
+      }
     }
+
+    loadVendors()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSendFeedback = () => {
+  const handleSendFeedback = async () => {
+    console.log("[VendorsStep] Sending feedback and regenerating vendors...")
     setIsGenerating(true)
-    setTimeout(() => {
-      setVendorData({
-        ...vendorData,
-        categories: generateMockVendors(),
-      })
-      setIsGenerating(false)
+    setError(null)
+    
+    try {
+      const feedback = vendorData.vendorFeedback
+      console.log("[VendorsStep] Calling generateVendors with feedback:", feedback)
+      const categories = await generateVendors(eventData, feedback)
+      console.log("[VendorsStep] Received updated categories:", categories)
+      setVendorData((prev) => ({
+        ...prev,
+        categories,
+        vendorFeedback: "",
+      }))
       setShowFeedback(false)
-    }, 2000)
+    } catch (err) {
+      console.error("[VendorsStep] Failed to regenerate vendors:", err)
+      setError(err instanceof Error ? err.message : "Failed to regenerate vendors. Please try again.")
+      // Fallback to mock data on error
+      setVendorData((prev) => ({
+        ...prev,
+        categories: generateMockVendors(),
+        vendorFeedback: "",
+      }))
+      setShowFeedback(false)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   if (isInitialLoad || isGenerating) {
@@ -99,6 +144,12 @@ export function VendorsStep({ onContinue }: VendorsStepProps) {
 
           {/* Right Column - Vendor Selection */}
           <div className="lg:col-span-2 space-y-6">
+            {error && (
+              <Card className="p-4 bg-red-50 border border-red-200">
+                <p className="text-sm text-red-600">{error}</p>
+              </Card>
+            )}
+            
             {/* Vendor Categories */}
             <div className="space-y-8">
               {vendorData.categories.map((category, index) => (
