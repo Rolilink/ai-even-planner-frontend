@@ -1,4 +1,5 @@
 import { EventFormData, EventConcept, VendorCategory, Vendor } from "@/store/event-planner"
+import { getSessionId } from "@/lib/utils"
 
 // API Types based on OpenAPI schema
 interface ApiConcept {
@@ -112,8 +113,8 @@ export async function generateConcepts(
   // The API route will forward the request to the ngrok URL
   const apiUrl = "/api/concepts"
   
-  // Build query parameters
-  const userIdParam = userId || "default-user" // Default user ID if not provided
+  // Build query parameters - use provided userId or generate a unique session ID
+  const userIdParam = userId || getSessionId()
   const urlWithParams = `${apiUrl}?user_id=${encodeURIComponent(userIdParam)}`
   
   // Transform data to match API schema
@@ -211,8 +212,8 @@ export async function generateVendors(
   // Use Next.js API route as proxy to avoid CORS issues
   const apiUrl = "/api/vendors"
   
-  // Build query parameters
-  const userIdParam = userId || "default-user"
+  // Build query parameters - use provided userId or generate a unique session ID
+  const userIdParam = userId || getSessionId()
   const urlWithParams = `${apiUrl}?user_id=${encodeURIComponent(userIdParam)}`
   
   // Transform data to match API schema
