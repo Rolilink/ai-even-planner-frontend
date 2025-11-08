@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const API_BASE_URL = "https://vicissitudinous-alexis-chivalrously.ngrok-free.dev"
+const API_BASE_URL = "https://ai-event-planner-server.onrender.com"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
       },
       body: JSON.stringify(body),
     })
@@ -21,13 +20,13 @@ export async function POST(request: NextRequest) {
       const errorText = await response.text()
       console.error("[API Route] Error response:", errorText)
       
-      // Check if this is an ngrok connection error
-      if (errorText.includes("ERR_NGROK_8012") || errorText.includes("failed to establish a connection")) {
+      // Check if this is a connection error
+      if (errorText.includes("failed to establish a connection") || response.status === 503) {
         return NextResponse.json(
           { 
             error: "Backend server connection failed",
-            message: "The ngrok tunnel is working, but cannot connect to the backend server at localhost:8000. Please ensure your FastAPI server is running.",
-            details: "Make sure your backend API server is running on port 8000"
+            message: "Unable to connect to the backend server. Please try again later.",
+            details: "The API server may be temporarily unavailable"
           },
           { status: 503 } // Service Unavailable
         )
