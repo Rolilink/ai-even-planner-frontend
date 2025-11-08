@@ -1,7 +1,7 @@
 "use client"
 
 import { useAtom } from "jotai"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,20 +21,22 @@ export function VendorsStep({ onContinue }: VendorsStepProps) {
   const [vendorData, setVendorData] = useAtom(vendorSelectionAtom)
   const [isGenerating, setIsGenerating] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-  const [isInitialLoad, setIsInitialLoad] = useState(vendorData.categories.length === 0)
-
-  // Generate initial vendors if not already done
-  if (vendorData.categories.length === 0 && !isInitialLoad) {
-    setIsInitialLoad(true)
-    setTimeout(() => {
-      setVendorData({
-        ...vendorData,
-        categories: generateMockVendors(),
-      })
+  // Generate initial vendors on mount if not already done
+  useEffect(() => {
+    if (vendorData.categories.length === 0) {
+      setTimeout(() => {
+        setVendorData({
+          ...vendorData,
+          categories: generateMockVendors(),
+        })
+        setIsInitialLoad(false)
+      }, 2000)
+    } else {
       setIsInitialLoad(false)
-    }, 2000)
-  }
+    }
+  }, [])
 
   const handleSendFeedback = () => {
     setIsGenerating(true)
